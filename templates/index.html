@@ -1,0 +1,917 @@
+<!-- 
+ All Front end UI Design, formatting, and styling was assembled 
+ via prompting Gemini with ideas and plans
+ starting off the Low-Fidelity UI Mockup from stage 1
+ -->
+
+ <!doctype html>
+ <html lang="en">
+   <head>
+     <meta charset="utf-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+     <title>Chronicle Compass</title>
+     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    </head>
+   <body>
+     <div class="container-fluid">
+       <div class="row min-vh-100">
+         
+         <!-- LEFT: Vertical Sidebar Navigation -->
+          <div class="col-md-3 bg-dark text-white p-4">
+           <h2 class="mb-4 text-center"> Chronicle Compass </h2>
+           <hr class="text-secondary">
+           <!-- User Account Status / Auth Panel -->
+           <div class="card bg-secondary bg-opacity-25 text-white mb-4 border-0">
+             <div class="card-body p-3 text-center">
+               {% if session.get('user_id') %}
+                 <p class="mb-1 text-success fw-bold">Logged in as: {{ session.get('username') }}</p>
+                 <small class="d-block mb-2 text-light opacity-75">User ID: {{ session.get('user_id') }}</small>
+                 <a href="/logout" class="btn btn-sm btn-outline-danger w-100">Log Out</a>
+               {% else %}
+                 <p class="mb-2 text-warning small">Not logged in</p>
+                 <div class="d-grid gap-2">
+                   <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#loginModal">Log In</button>
+                   <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#signupModal">Sign Up</button>
+                 </div>
+               {% endif %}
+             </div>
+           </div>
+ 
+           <div class="nav flex-column nav-pills gap-2" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+             <button class="nav-link {% if active_tab == 'search' or not active_tab %}active{% endif %} text-start text-white bg-secondary bg-opacity-25" id="search-tab" data-bs-toggle="pill" data-bs-target="#search-section" type="button" role="tab">🔍 Search Events & Display</button>
+             <button class="nav-link {% if active_tab == 'timeline' %}active{% endif %} text-start text-white bg-secondary bg-opacity-25" id="timeline-tab" data-bs-toggle="pill" data-bs-target="#timeline-section" type="button" role="tab">⏳ Interactive Timeline</button>
+             
+             <hr class="text-secondary">
+             <h5 class="text-secondary px-2">User Dashboard</h5>
+             <button class="nav-link {% if active_tab == 'collections' %}active{% endif %} text-start text-white bg-secondary bg-opacity-25" id="collections-tab" data-bs-toggle="pill" data-bs-target="#collections-section" type="button" role="tab">📁 My Collections</button>
+             <button class="nav-link {% if active_tab == 'notes' %}active{% endif %} text-start text-white bg-secondary bg-opacity-25" id="notes-tab" data-bs-toggle="pill" data-bs-target="#notes-section" type="button" role="tab">📝 Notes and Tags</button>
+           </div>
+         </div>
+ 
+         <!-- RIGHT: Dynamic Content Sections -->
+         <div class="col-md-9 p-4 bg-light">
+           
+           <!-- Alert System for Notifications and Errors -->
+           {% if error %}
+             <div class="alert alert-danger alert-dismissible fade show" role="alert">
+               {{ error }}
+               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+             </div>
+           {% endif %}
+           {% if message %}
+             <div class="alert alert-success alert-dismissible fade show" role="alert">
+               {{ message }}
+               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+             </div>
+           {% endif %}
+ 
+           <div class="tab-content" id="v-pills-tabContent">
+             
+             <!-- SECTION 1: Search, Scrollable Table, and Detail View -->
+             <div class="tab-pane fade {% if active_tab == 'search' or not active_tab %}show active{% endif %}" id="search-section" role="tabpanel">
+               
+               <!-- Multi-Field Search Component -->
+               <div class="card shadow-sm mb-4 border-0">
+                 <div class="card-header bg-dark text-white font-weight-bold">
+                   Chronicle Compass Event Search
+                   <form method="POST" action="/" class="d-inline">
+                    <input type="hidden" name="preset" value="Military">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      Military Events
+                    </button>
+                  </form>
+                  <form method="POST" action="/" class="d-inline">
+                    <input type="hidden" name="preset" value="regions">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      Active Regions
+                    </button>
+                  </form>
+                  <form method="POST" action="/" class="d-inline">
+                    <input type="hidden" name="preset" value="tags">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      common events
+                    </button>
+                  </form>
+                 </div>
+                 <div class="card-body p-4 bg-white rounded-bottom">
+                   <form method="get" action="/">
+                     <div class="row g-3 mb-3">
+                       <div class="col-12">
+                         <label class="form-label small fw-bold text-primary text-uppercase">Event Title</label>
+                         <input type="text" name="q_event" value="{{ q_event|default('') }}" class="form-control border-primary" placeholder="e.g., French Revolution... (Partial name accepted)">
+                       </div>
+                     </div>
+ 
+                     <div class="mb-3">
+                       <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#advancedSearchFields" aria-expanded="false">
+                         Toggle Extra Search Fields
+                       </button>
+                     </div>
+ 
+                     <div class="collapse" id="advancedSearchFields">
+                       <div class="row g-3 p-3 bg-light rounded border mb-3">
+                         <div class="col-md-6">
+                           <label class="form-label small fw-bold text-muted text-uppercase">Event Year</label>
+                           <input type="text" name="q_year" value="{{ q_year|default('') }}" class="form-control" placeholder="e.g., 1789">
+                         </div>
+                         <div class="col-md-6">
+                           <label class="form-label small fw-bold text-muted text-uppercase">Country</label>
+                           <input type="text" name="q_country" value="{{ q_country|default('') }}" class="form-control" placeholder="e.g., France">
+                         </div>
+                         <div class="col-md-6">
+                           <label class="form-label small fw-bold text-muted text-uppercase">Continent</label>
+                           <input type="text" name="q_continent" value="{{ q_continent|default('') }}" class="form-control" placeholder="e.g., Europe">
+                         </div>
+                         <div class="col-md-6">
+                          <label class="form-label small fw-bold text-muted text-uppercase">Keyword Search (Title, Desc, Tags)</label>
+                          <input type="text" name="q_keyword" value="{{ q_keyword|default('') }}" class="form-control" placeholder="e.g, war (use box by itself partial accepted)">
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label small fw-bold text-muted text-uppercase">Tag / Category</label>
+                          <input type="text" name="q_tag" value="{{ q_tag|default('') }}" class="form-control" placeholder="e.g., military, royalty, politics...">
+                        </div>
+                       </div>
+                     </div>
+ 
+                     <div class="row">
+                       <div class="col-12 text-end">
+                         <button class="btn btn-primary px-4" type="submit">Search</button>
+                       </div>
+                     </div>
+                   </form>
+                 </div>
+               </div>
+ 
+               <!-- Historical Events Display Table -->
+               <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white font-weight-bold">Results / Summary</div>
+                <div class="card-body">
+                  {% if results %}
+                    <div style="max-height: 300px; overflow-y: auto;">
+                      <table class="table table-hover mb-0">
+                        <thead class="sticky-top bg-white" style="z-index: 1;">
+                          <tr>
+                            <!-- OUTER IF: Check if a preset button was clicked -->
+                            {% if preset %}
+                              <!-- Preset-specific headers (e.g., if you have different presets) -->
+                              {% if preset == 'Military' %}
+                                <th>EventID</th>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>EventDate</th>
+                                <th>Year</th>
+                                <th>Source</th>
+                              {% elif preset == 'regions' %}
+                                <th>Country</th>
+                                <th>Total Events</th>
+                                <th>Earliest</th>
+                                <th>Latest</th>
+                              {% elif preset == 'tags' %}
+                                <th>Tag Name</th>
+                                <th>Event Count</th>
+                                <th>Regions Represented</th>
+                              {% endif %}
+              
+                            <!-- OUTER ELSE: Your existing standard search logic -->
+                            {% else %}
+                              {% if q_type == "event" or q_type == "year" %}
+                                <th>EventID</th>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>EventDate</th>
+                                <th>Year</th>
+                                <th>Source</th>
+                                <th>Action</th>
+                              {% elif q_type == 'continent' %}
+                                <th>RegionID</th>
+                                <th>Country</th>
+                                <th>Continent</th>
+                              {% elif q_type == 'keyword' or q_type == 'country' or q_type =='multi'%}
+                                <th>EventID</th>
+                                <th>Title</th>
+                                <th>EventDate</th>
+                                <th>Country</th>
+                              {% elif q_type == 'tag'%}
+                                <th>EventID</th>
+                                <th>Title</th>
+                                <th>EventDate</th>
+                                <th>TagName</th>
+                              {% endif %}
+                            {% endif %}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in results %}
+                            <tr>
+                              <!-- OUTER IF: Rows for presets -->
+                              {% if preset %}
+                                {% if preset == 'Military' %}
+                                  <td>{{ row.EventID }}</td>
+                                  <td><strong>{{ row.Title }}</strong></td>
+                                  <td>{{ row.Description }}</td>
+                                  <td>{{ row.EventDate }}</td>
+                                  <td>{{ row.Year }}</td>
+                                  <td>{{ row.Source }}</td>
+                                  <td>
+                                    <form action="/select_event" method="POST" class="d-inline">
+                                      <input type="hidden" name="selected_event_id" value="{{ row.EventID }}">
+                                      <button type="submit" class="btn btn-sm btn-info text-white">Select</button>
+                                    </form>
+                                  </td>
+                                {% elif preset == 'regions' %}
+                                  <td><strong>{{ row.Country }}</strong></td>
+                                  <td>{{ row.TotalEvents }}</td>
+                                  <td>{{ row.EarliestEvent }}</td>
+                                  <td>{{ row.LatestEvent }}</td>
+                                {% elif preset == 'tags' %}
+                                  <td><strong>{{ row.TagName }}</strong></td>
+                                  <td>{{ row.EventCount }}</td>
+                                  <td>{{ row.RegionsRepresented }}</td>
+                                {% endif %}
+              
+                              <!-- OUTER ELSE: Rows for standard search -->
+                              {% else %}
+                                {% if q_type == "event" or q_type == "year" %}
+                                  <td>{{ row.EventID }}</td>
+                                  <td><strong>{{ row.Title }}</strong></td>
+                                  <td>{{ row.Description[:80] if row.Description else '' }}...</td>
+                                  <td>{{ row.EventDate }}</td>
+                                  <td>{{ row.Year }}</td>
+                                  <td>{{ row.Source }}</td>
+                                  <td>
+                                    <form action="/select_event" method="POST" class="d-inline">
+                                      <input type="hidden" name="selected_event_id" value="{{ row.EventID }}">
+                                      <button type="submit" class="btn btn-sm btn-info text-white">Select</button>
+                                    </form>
+                                  </td>
+                                {% elif q_type == 'continent' %}
+                                  <td>{{ row.RegionID }}</td>
+                                  <td>{{ row.Country }}</td>
+                                  <td>{{ row.Continent }}</td>
+                                  {% elif q_type == 'keyword' or q_type == 'country' or q_type =='multi'%}
+                                  <td>{{ row.EventID }}</td>
+                                  <td>{{ row.Title }}</td>
+                                  <td>{{ row.EventDate }}</td>
+                                  <td>{{ row.Country }}</td>
+                                  <td>
+                                    <form action="/select_event" method="POST" class="d-inline">
+                                      <input type="hidden" name="selected_event_id" value="{{ row.EventID }}">
+                                      <button type="submit" class="btn btn-sm btn-info text-white">Select</button>
+                                    </form>
+                                  </td>
+                                  {% elif q_type == 'tag'%}
+                                  <td>{{ row.EventID }}</td>
+                                  <td>{{ row.Title }}</td>
+                                  <td>{{ row.EventDate }}</td>
+                                  <td>{{ row.TagName }}</td>
+                                  <td>
+                                    <form action="/select_event" method="POST" class="d-inline">
+                                      <input type="hidden" name="selected_event_id" value="{{ row.EventID }}">
+                                      <button type="submit" class="btn btn-sm btn-info text-white">Select</button>
+                                    </form>
+                                  </td>
+                                {% endif %}
+                              {% endif %}
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  {% else %}
+                    <p class="text-muted mb-0">No Results Found.</p>
+                  {% endif %}
+                </div>
+              </div>
+ 
+               <!-- Event Detail Page View -->
+               {% if selected_event %}
+                  <div class="card shadow-sm border-info mb-4">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">Selected Event: {{ selected_event.Title }}</h5>
+                      <span class="badge bg-light text-dark">ID: {{ selected_event.EventID }}</span>
+                    </div>
+                    <div class="card-body">
+                      <p class="lead">{{ selected_event.Description }}</p>
+                      <div class="row mb-3">
+                        <div class="col-md-4"><strong>Year:</strong> {{ selected_event.Year }}</div>
+                        <div class="col-md-4"><strong>Date:</strong> {{ selected_event.EventDate or 'N/A' }}</div>
+                        <div class="col-md-4"><strong>Source:</strong> {{ selected_event.Source or 'N/A' }}</div>
+                      </div>
+
+                      <!-- HISTORICAL FIGURES SECTION -->
+                      <hr>
+                      <h6 class="fw-bold text-secondary mb-2">Tied Historical Figures</h6>
+                      {% if Historical_figures %}
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                          {% for figure in Historical_figures %}
+                            <div class="card bg-light border p-2 small" style="min-width: 200px;">
+                              <strong>{{ figure.Name }}</strong>
+                              <span class="text-muted">({{ figure.BirthYear or '?' }} - {{ figure.DeathYear or '?' }})</span>
+                              {% if figure.Description %}
+                                <small class="text-secondary d-block mt-1">{{ figure.Description[:60] }}...</small>
+                              {% endif %}
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <p class="text-muted small"><em>No historical figures linked to this event.</em></p>
+                      {% endif %}
+
+                      <hr>
+
+                      <!-- User Actions: Add Note / Save Event -->
+                      {% if session.get('user_id') %}
+                        <div class="row align-items-center g-3">
+                          <div class="col-md-8">
+                            <form action="/notes/create" method="POST" class="d-flex gap-2">
+                              <input type="hidden" name="event_id" value="{{ selected_event.EventID }}">
+                              <input type="text" name="note_text" class="form-control form-control-sm" placeholder="Add a personal study note about this event..." >
+                              <button type="submit" class="btn btn-sm btn-success text-nowrap">+ Add Note</button>
+                            </form>
+                          </div>
+                          <div class="col-md-4 text-end">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#saveCollectionModal">📁 Save to Collection</button>
+                          </div>
+                        </div>
+                      {% else %}
+                        <p class="text-muted small mb-0"><em>Log in to write personal notes or save this event to your collections.</em></p>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endif %}
+ 
+             </div>
+ 
+             <!-- SECTION 2: Interactive Timeline Section -->
+            <div class="tab-pane fade {% if active_tab == 'timeline' %}show active{% endif %}" id="timeline-section" role="tabpanel">
+              <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-dark text-white font-weight-bold d-flex justify-content-between align-items-center">
+                  <span>Interactive Event Volume Timeline</span>
+                  <small class="text-light opacity-75">Click a bar or adjust slider to view year events</small>
+                </div>
+                <div class="card-body p-4 bg-white rounded-bottom">
+                  
+                  <!-- Chart Dropdown Controls -->
+                  <div class="d-flex align-items-center mb-3 gap-2">
+                    <label for="yearSelectDropdown" class="fw-bold me-2">Jump to Year:</label>
+                    <select id="yearSelectDropdown" class="form-select" style="width: 180px;">
+                      <option value="" disabled {{ 'selected' if not selected_year }}>-- Select Year --</option>
+                      {% for row in barChart_data %}
+                        <option 
+                          value="{{ row.Year }}" 
+                          {{ 'selected' if selected_year and (selected_year | int) == (row.Year | int) }}>
+                          Year {{ row.Year }}
+                        </option>
+                      {% endfor %}
+                    </select>
+
+                    <button id="btnResetChart" class="btn btn-outline-secondary btn-sm ms-2" type="button">
+                      Reset to Beginning
+                    </button>
+                  </div>
+
+                  <!-- Bar Chart Container -->
+                  <div class="mb-4 p-3 bg-light border rounded">
+                    <div style="height: 300px; width: 100%; position: relative;">
+                      <canvas 
+                        id="timelineChart" 
+                        data-chart='{{ (barChart_data or []) | tojson | safe }}'
+                        data-selected="{{ selected_year if selected_year is not none else '' }}">
+                      </canvas>
+                    </div>
+                  </div>
+
+                  <!-- Year Range Slider Controls -->
+                  <div class="row align-items-center bg-light p-3 rounded border">
+                    <label for="yearSlider" class="col-sm-2 col-form-label fw-bold text-dark">Select Year:</label>
+                    <div class="col-sm-8">
+                      <input 
+                        type="range" 
+                        class="form-range" 
+                        id="yearSlider" 
+                        min="{{ min_year or 1000 }}" 
+                        max="{{ max_year or 2026 }}" 
+                        value="{{ selected_year or min_year or 1000 }}"
+                        oninput="document.getElementById('sliderVal').innerText = this.value;"
+                        onchange="window.location.href = '/timeline?year=' + this.value + '#timeline-section';"
+                      >
+                    </div>
+                    <div class="col-sm-2 text-end">
+                      <span class="badge bg-primary fs-6 px-3 py-2" id="sliderVal">{{ selected_year or min_year or 1000 }}</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Selected Year Events Display -->
+              <div class="card shadow-sm border-0">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                  <span>
+                    {% if selected_year %}
+                      Events in Year {{ selected_year }}
+                    {% else %}
+                      Timeline Events Overview
+                    {% endif %}
+                  </span>
+                  {% if selected_year %}
+                    <a href="/timeline#timeline-section" class="btn btn-sm btn-outline-light">Clear Year Filter</a>
+                  {% endif %}
+                </div>
+                <div class="card-body">
+                  {% if selected_year %}
+                    {% if timeline_events %}
+                      <div class="list-group">
+                        {% for evt in timeline_events %}
+                          <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                              <h5 class="mb-0 text-primary">{{ evt.Title }}</h5>
+                              <small class="text-muted fw-bold">{{ evt.EventDate or evt.Year }}</small>
+                            </div>
+                            <p class="mb-1 text-secondary small">{{ evt.Description }}</p>
+                            {% if evt.Source %}
+                              <small class="text-muted">Source: {{ evt.Source }}</small>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <p class="text-muted mb-0">No events found for {{ selected_year }}.</p>
+                    {% endif %}
+                  {% else %}
+                    <p class="text-muted mb-0 text-center p-3">
+                      Use the slider or click any bar on the chart above to inspect historical events for that specific year.
+                    </p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+ 
+            <!-- SECTION 3: My Collections -->
+            <div class="tab-pane fade {% if active_tab == 'collections' %}show active{% endif %}" id="collections-section" role="tabpanel">
+              <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                  <span>My Collections</span>
+                </div>
+                <div class="card-body">
+                  {% if session.get('user_id') %}
+                    
+                    <!-- Create Collection Form -->
+                    <form action="/collections/create" method="POST" class="row g-2 mb-4">
+                      <div class="col-md-4">
+                        <input type="text" name="collection_name" class="form-control form-control-sm" placeholder="New Collection Name" required>
+                      </div>
+                      <div class="col-md-6">
+                        <input type="text" name="description" class="form-control form-control-sm" placeholder="Collection Description">
+                      </div>
+                      <div class="col-md-2">
+                        <button type="submit" class="btn btn-sm btn-primary w-100">Create</button>
+                      </div>
+                    </form>
+                    
+                    <hr>
+
+                    <!-- 1. SCROLL BOX: Display Items in Currently Selected Collection -->
+                    {% if collection_events is not none and selected_collection_id %}
+                      <div class="card border-primary mb-4 shadow-sm">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                          <h6 class="mb-0">📁 Viewing Collection {{ selected_collection_name}}</h6>
+                          <span class="badge bg-light text-dark">
+                            {{ collection_events|length }} items
+                          </span>
+                        </div>
+                        <div class="card-body p-0">
+                          {% if collection_events %}
+                            <!-- Max height 280px scrollable container -->
+                            <div style="max-height: 280px; overflow-y: auto;">
+                              <table class="table table-hover table-striped mb-0 small">
+                                <thead class="table-light sticky-top" style="z-index: 1;">
+                                  <tr>
+                                    <th>Event ID</th>
+                                    <th>Title</th>
+                                    <th>Date</th>
+                                    <th>Country</th>  <!-- Added -->
+                                    <th>Tags</th>     <!-- Added -->
+                                    <th>Notes</th>    <!-- Added -->
+                                    <th class="text-end">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {% for event in collection_events %}
+                                    <tr>
+                                      <td><code>{{ event.EventID }}</code></td>
+                                      <td><strong>{{ event.Title }}</strong></td>
+                                      <td>{{ event.EventDate or 'N/A' }}</td>
+                                      <td>{{ event.Country or 'N/A' }}</td>
+                                      <td>{{ event.Tags or 'None' }}</td>
+                                      <td><span class="badge bg-secondary">{{ event.Notes or 0 }}</span></td>
+                                      <td class="text-end">
+                                        <form action="/collections/remove_item" method="POST" class="m-0 d-inline">
+                                          <input type="hidden" name="collection_id" value="{{ selected_collection_id }}">
+                                          <input type="hidden" name="event_id" value="{{ event.EventID }}">
+                                          <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1" onclick="return confirm('Remove event from collection?');">Remove</button>
+                                        </form>
+                                      </td>
+                                    </tr>
+                                  {% endfor %}
+                                </tbody>
+                              </table>
+                            </div>
+                          {% else %}
+                            <div class="p-3 text-muted text-center small">
+                              <em>This collection is currently empty. Add items from the Search tab!</em>
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endif %}
+
+                    <!-- 2. GRID DISPLAY: All User Collections -->
+                    {% if user_collections %}
+                      <div class="row g-3">
+                        {% for collection in user_collections %}
+                          <div class="col-md-6">
+                            <div class="card border-secondary h-100 {% if selected_collection and selected_collection.CollectionName == collection.CollectionName %}border-primary border-2{% endif %}">
+                              <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                  <h5 class="card-title text-primary m-0">{{ collection.CollectionName }}</h5>
+                                  <span class="badge bg-info text-dark">
+                                    {{ collection.ItemCount or 0 }} {% if collection.ItemCount == 1 %}item{% else %}items{% endif %}
+                                  </span>
+                                </div>
+                                <p class="card-text text-muted small">{{ collection.Description or 'No description provided.' }}</p>
+                                <small class="text-secondary d-block mb-3">Created: {{ collection.DateCreated }}</small>
+                                
+                                <div class="d-flex align-items-center gap-2">
+                                  <!-- Form/Button to view items in top scroll box -->
+                                  <form action="/collections/view" method="POST" class="m-0">
+                                    <input type="hidden" name="collection_id" value="{{ collection.CollectionID }}">
+                                    <input type="hidden" name="collection_name" value="{{ collection.CollectionName }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">View Items</button>
+                                  </form>
+
+                                  <!-- Delete Form -->
+                                  <form action="/collections/delete" method="POST" class="m-0">
+                                    <input type="hidden" name="collection_name" value="{{ collection.CollectionName }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure?');">Delete</button>
+                                  </form>
+                              
+                                  <!-- Button to toggle inline update form -->
+                                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('edit-form-{{ loop.index }}').style.display = 'block'; this.style.display = 'none';">
+                                    Update
+                                  </button>
+                                </div>
+                              
+                                <!-- Hidden Inline Update Form -->
+                                <form action="/collections/update" method="POST" id="edit-form-{{ loop.index }}" style="display: none;" class="mt-3 pt-3 border-top">
+                                  <input type="hidden" name="old_collection_name" value="{{ collection.CollectionName }}">
+                                  
+                                  <div class="mb-2">
+                                    <label class="form-label small text-muted">New Name</label>
+                                    <input type="text" name="collection_name" class="form-control form-control-sm" value="{{ collection.CollectionName }}" required>
+                                  </div>
+                                  
+                                  <div class="mb-2">
+                                    <label class="form-label small text-muted">New Description</label>
+                                    <textarea name="description" class="form-control form-control-sm" rows="3">{{ collection.Description }}</textarea>
+                                  </div>
+                                  
+                                  <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('edit-form-{{ loop.index }}').style.display = 'none'; this.closest('.card-body').querySelector('button.btn-outline-secondary').style.display = 'inline-block';">Cancel</button>
+                                  </div>
+                                </form>
+                              </div>
+                            </div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <p class="text-muted mb-0">You haven't created any collections yet. Use the form above to start one!</p>
+                    {% endif %}
+
+                  {% else %}
+                    <p class="text-muted mb-0">Please log in to manage your collections.</p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+ 
+             <!-- SECTION 4: Notes and Tags (FULL CRUD DISPLAY) -->
+             <div class="tab-pane fade {% if active_tab == 'notes' %}show active{% endif %}" id="notes-section" role="tabpanel">
+               <div class="card shadow-sm">
+                 <div class="card-header bg-dark text-white"> My Notes & Annotations </div>
+                 <div class="card-body">
+                   {% if user_notes %}
+                     <div class="table-responsive">
+                       <table class="table table-hover align-middle">
+                         <thead>
+                           <tr>
+                             <th>Note ID</th>
+                             <th>Event Title</th>
+                             <th>Event ID</th>
+                             <th>Note Text</th>
+                             <th>Date Created</th>
+                             <th>Actions</th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           {% for note in user_notes %}
+                             <tr>
+                               <td>{{ note.NoteID }}</td>
+                               <td><strong>{{ note.EventTitle }}</strong></td>
+                               <td><strong>{{ note.EventID }}</strong></td>
+                               <td style="max-width: 400px;">
+                                <!-- UPDATE NOTE FORM -->
+                                <form action="/notes/update" method="POST" class="d-flex gap-2 align-items-center">
+                                  <input type="hidden" name="note_id" value="{{ note.NoteID }}">
+                                  
+                                  <!-- Changed from input to textarea for paragraph-style editing, with auto-wrap styling -->
+                                  <textarea name="note_text" class="form-control form-control-sm" rows="2" style="resize: vertical;" required>{{ note.NoteText }}</textarea>
+                                  
+                                  <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Save</button>
+                                </form>
+                              </td>
+                               <td><small class="text-muted">{{ note.DateCreated }}</small></td>
+                               <td>
+                                 <!-- DELETE NOTE FORM -->
+                                 <form action="/notes/delete" method="POST" onsubmit="return confirm('Delete this note?');">
+                                   <input type="hidden" name="note_id" value="{{ note.NoteID }}">
+                                   <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                 </form>
+                               </td>
+                             </tr>
+                           {% endfor %}
+                         </tbody>
+                       </table>
+                     </div>
+                   {% else %}
+                     <p class="text-muted mb-0">No personal study notes available yet. Search for events and add notes!</p>
+                   {% endif %}
+                 </div>
+               </div>
+             </div>
+ 
+           </div>
+         </div>
+         
+       </div>
+     </div>
+ 
+     <!-- MODAL 1: Sign Up -->
+     <div class="modal fade" id="signupModal" tabindex="-1" aria-hidden="true">
+       <div class="modal-dialog">
+         <div class="modal-content">
+           <div class="modal-header bg-dark text-white">
+             <h5 class="modal-title">Create Chronicle Compass Account</h5>
+             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+           </div>
+           <form action="/signup" method="POST">
+             <div class="modal-body">
+               <div class="mb-3">
+                 <label class="form-label fw-bold">Username</label>
+                 <input type="text" name="username" class="form-control" required>
+               </div>
+               <div class="mb-3">
+                 <label class="form-label fw-bold">Email Address</label>
+                 <input type="email" name="email" class="form-control" required>
+               </div>
+               <div class="mb-3">
+                 <label class="form-label fw-bold">Password</label>
+                 <input type="password" name="password" class="form-control" required>
+               </div>
+             </div>
+             <div class="modal-footer">
+               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+               <button type="submit" class="btn btn-primary">Sign Up</button>
+             </div>
+           </form>
+         </div>
+       </div>
+     </div>
+ 
+     <!-- MODAL 2: Log In -->
+     <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+       <div class="modal-dialog">
+         <div class="modal-content">
+           <div class="modal-header bg-dark text-white">
+             <h5 class="modal-title">Log In</h5>
+             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+           </div>
+           <form action="/login" method="POST">
+             <div class="modal-body">
+               <div class="mb-3">
+                 <label class="form-label fw-bold">Username or Email</label>
+                 <input type="text" name="username_email" class="form-control" required>
+               </div>
+               <div class="mb-3">
+                 <label class="form-label fw-bold">Password</label>
+                 <input type="password" name="login_password" class="form-control" required>
+               </div>
+             </div>
+             <div class="modal-footer">
+               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+               <button type="submit" class="btn btn-success">Log In</button>
+             </div>
+           </form>
+         </div>
+       </div>
+     </div>
+ 
+     <!-- MODAL 3: Save to Collection-->
+     {% if selected_event and session.get('user_id') %}
+       <div class="modal fade" id="saveCollectionModal" tabindex="-1" aria-hidden="true">
+         <div class="modal-dialog">
+           <div class="modal-content">
+             <div class="modal-header bg-dark text-white">
+               <h5 class="modal-title">Save Event to Collection</h5>
+               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+             </div>
+             <form action="/collections/add_event" method="POST">
+               <input type="hidden" name="event_id" value="{{ selected_event.EventID }}">
+               <div class="modal-body">
+                 <p>Select a collection to add <strong>{{ selected_event.Title }}</strong>:</p>
+                 <div class="mb-3">
+                   <label class="form-label fw-bold">Collection Name</label>
+                   <input type="text" name="collection_name" class="form-control" placeholder="Enter A Collection Name" required>
+                 </div>
+                 <div class="mb-3">
+                  <label class="form-label fw-bold">Add Note <span class="text-muted fw-normal">(Optional)</span></label>
+                  <textarea 
+                    name="note_text" 
+                    class="form-control" 
+                    rows="3" 
+                    placeholder="Add personal thoughts or notes about this event..."
+                  ></textarea>
+                </div>
+               </div>
+               <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                 <button type="submit" class="btn btn-primary">Save Event</button>
+               </div>
+             </form>
+           </div>
+         </div>
+       </div>
+     {% endif %}
+ 
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+     <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        if (typeof Chart === 'undefined') return;
+
+        const canvas = document.getElementById('timelineChart');
+        const dropdown = document.getElementById('yearSelectDropdown');
+        const resetBtn = document.getElementById('btnResetChart');
+
+        if (!canvas || !canvas.dataset.chart) return;
+
+        let rawChartData = [];
+        try {
+          rawChartData = JSON.parse(canvas.dataset.chart);
+        } catch (e) {
+          console.error("Failed to parse chart data JSON:", e);
+          return;
+        }
+
+        if (!rawChartData || rawChartData.length === 0) return;
+
+        const selectedYear = canvas.dataset.selected ? Number(canvas.dataset.selected) : null;
+        const labels = rawChartData.map(row => Number(row.Year));
+        const data = rawChartData.map(row => row.TotalEvents || row.EventCount || 0);
+
+        const backgroundColors = labels.map(y => y === selectedYear ? '#ffc107' : '#0d6efd');
+        const borderColors = labels.map(y => y === selectedYear ? '#d39e00' : '#0b5ed7');
+
+        const visibleRange = 15;
+
+        // Helper to calculate category axis bounds
+        function getBounds(targetYear) {
+          let index = labels.findIndex(y => y === targetYear);
+          if (index === -1) index = 0;
+
+          const minIdx = Math.max(0, index - Math.floor(visibleRange / 2));
+          const maxIdx = Math.min(labels.length - 1, minIdx + visibleRange - 1);
+          
+          return {
+            min: String(labels[minIdx]),
+            max: String(labels[maxIdx])
+          };
+        }
+
+        // Option A Helper: Sync selected year directly to input/slider without reloading the page
+        function syncWithYearInput(year) {
+          // Finds your range slider or year input within the timeline section
+          const yearInput = document.querySelector('#timeline-section input[name="year"], #timeline-section input[type="range"]');
+          
+          if (yearInput) {
+            yearInput.value = year;
+            // Dispatch change event so existing event listeners update the UI/events list
+            yearInput.dispatchEvent(new Event('change', { bubbles: true }));
+            yearInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+
+        const initialBounds = getBounds(selectedYear !== null ? selectedYear : labels[0]);
+
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) existingChart.destroy();
+
+        const ctx = canvas.getContext('2d');
+        const timelineChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels.map(String),
+            datasets: [{
+              label: 'Event Volume',
+              data: data,
+              backgroundColor: backgroundColors,
+              borderColor: borderColors,
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            // Pointer cursor on bar hover
+            onHover: (event, chartElement) => {
+              event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+
+            // BAR CLICK: Update locally without touching the URL or triggering a reload
+            onClick: (event, elements) => {
+              if (elements && elements.length > 0) {
+                const clickedIndex = elements[0].index;
+                const clickedYear = labels[clickedIndex];
+                
+                // 1. Sync dropdown selection
+                if (dropdown) dropdown.value = clickedYear;
+
+                // 2. Adjust chart focus bounds around clicked bar
+                const bounds = getBounds(clickedYear);
+                timelineChart.options.scales.x.min = bounds.min;
+                timelineChart.options.scales.x.max = bounds.max;
+                timelineChart.update();
+
+                // 3. Update the page's year slider/input element locally
+                syncWithYearInput(clickedYear);
+              }
+            },
+
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: {
+                type: 'category',
+                grid: { display: false },
+                title: { display: true, text: 'Year' },
+                min: initialBounds.min,
+                max: initialBounds.max
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 0 },
+                title: { display: true, text: 'Number of Events' }
+              }
+            }
+          }
+        });
+
+        // DROPDOWN CHANGE: Update locally without touching the URL
+        if (dropdown) {
+          dropdown.addEventListener('change', function() {
+            const yearVal = parseInt(this.value, 10);
+            if (!isNaN(yearVal)) {
+              const bounds = getBounds(yearVal);
+              timelineChart.options.scales.x.min = bounds.min;
+              timelineChart.options.scales.x.max = bounds.max;
+              timelineChart.update();
+
+              syncWithYearInput(yearVal);
+            }
+          });
+        }
+
+        // RESET BUTTON: Reset to first year in dataset
+        if (resetBtn) {
+          resetBtn.addEventListener('click', function() {
+            const defaultBounds = getBounds(labels[0]);
+            timelineChart.options.scales.x.min = defaultBounds.min;
+            timelineChart.options.scales.x.max = defaultBounds.max;
+            timelineChart.update();
+
+            if (dropdown) dropdown.selectedIndex = 0;
+            syncWithYearInput(labels[0]);
+          });
+        }
+      });
+      </script>
+    </body>
+ </html>
